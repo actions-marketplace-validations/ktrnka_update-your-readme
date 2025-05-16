@@ -17,23 +17,23 @@ Currently only available for developers of this repo:
 ### Prerequisites:
 
 - GitHub repository
-- Anthropic API key, OpenAI API key, or GitHub Personal Access Token (PAT)
+- Anthropic API key, OpenAI API key, or GitHub Actions Token (`GITHUB_TOKEN`)
 
 To use this action in your GitHub workflow, add the following step to your `.github/workflows/your-workflow.yml` file, replacing the version as needed:
 
 ```yaml
 - uses: ktrnka/update-your-readme@VERSION
   with:
-    model-provider: "openai"
-    api-key: ${{ secrets.OPENAI_API_KEY }}
-    model: gpt-4o-mini-2024-07-18  # Specify your preferred model
+    model-provider: "github"
+    api-key: ${{ secrets.GITHUB_TOKEN }}
+    model: gpt-4o  # Specify your preferred model
     readme-file: README.md
     debug: "true"
 ```
 
 See `.github/workflows/suggest_readme_updates.yml` for an example.
 
-Make sure to set and api key such as `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GH_PAT` secret in your repository settings. Note: The Action will not work on PRs from forks because these secrets aren't available on workflows for those PRs.
+Make sure to set an API key such as `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or use the default `GITHUB_TOKEN` provided by GitHub Actions. Note: The Action will not work on PRs from forks because these secrets aren't available on workflows for those PRs.
 
 ### Model Configuration
 
@@ -116,7 +116,7 @@ This project includes GitHub Actions workflows that enhance the README update pr
 3. **README Feedback**: Defined in `.github/workflows/readme_feedback.yml`, this workflow:
    - Handles feedback on README updates
 
-To use these features, ensure that your repository has the necessary secrets set up (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GH_PAT`) and pass them as parameters to the action.
+To use these features, ensure that your repository has the necessary secrets set up (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`), or use the default `GITHUB_TOKEN`, and pass them as parameters to the action.
 
 ### Debugging
 

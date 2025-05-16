@@ -224,7 +224,7 @@ def get_model(model_provider: str, model_name: str) -> BaseChatModel:
 
             return ChatAnthropic(
                 model=model_name,
-                # The default is 1024 which leads to pipeline failures on longer readmes (because it can't regenerate the entire readme)
+                # The default is 1024 which leads to pipeline failures on longer readme (because it can't regenerate the entire readme)
                 max_tokens=max_tokens,
                 # On prompt caching:
                 # https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
@@ -247,7 +247,7 @@ def get_model(model_provider: str, model_name: str) -> BaseChatModel:
             model=model_name, 
             # This api_version supports structured output and o-series models
             api_version="2024-12-01-preview",
-            # Note: This must be a PAT not a Github Action token
+            # Note: This can now use a GitHub Actions token (GITHUB_TOKEN)
             api_key=os.environ["API_KEY"],
             temperature=0.2,
             # max_tokens is output
@@ -297,7 +297,7 @@ def review_pull_request(
     except openai.AuthenticationError as e:
         if isinstance(model, AzureChatOpenAI):
             raise ValueError(
-                "Authentication error, make sure you're using a personal access token not a Github Actions token"
+                "Authentication error, make sure you're using a valid GitHub Actions token (GITHUB_TOKEN) or a personal access token if needed."
             ) from e
         else:
             raise e
