@@ -237,7 +237,7 @@ def get_model(model_provider: str, model_name: str) -> BaseChatModel:
     elif model_provider == "github":
         os.environ["AZURE_OPENAI_ENDPOINT"] = "https://models.inference.ai.azure.com"
 
-        SUPPORTED_GITHUB_MODELS = {"gpt-4o", "gpt-4o-mini"}
+        SUPPORTED_GITHUB_MODELS = {"gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"}
         if model_name not in SUPPORTED_GITHUB_MODELS:
             raise ValueError(f"{model_name} is not supported. If it's a non-OpenAI model, it's because we're using the AzureChatOpenAI wrapper which only supports the OpenAI models. If it's an o-series model, it's because the o-series doesn't support SystemMessage and I haven't implemented the fix yet. Supported models: {SUPPORTED_GITHUB_MODELS}")
 

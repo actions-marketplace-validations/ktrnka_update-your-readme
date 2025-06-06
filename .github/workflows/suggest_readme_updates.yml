@@ -22,7 +22,7 @@ jobs:
       - uses: ktrnka/update-your-readme@github_actions_token
         with:
           model-provider: "github"
-          model: gpt-4o
+          model: gpt-4.1
           api-key: ${{ secrets.GITHUB_TOKEN }}
           readme-file: README.md
           debug: "true"
