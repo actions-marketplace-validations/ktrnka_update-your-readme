@@ -1,10 +1,10 @@
 # Update Your README
 
-This project automatically updates README files based on changes in pull requests using GitHub API and language models.
+This project automatically updates README files based on changes in pull requests using the GitHub API and language models.
 
 ## Features
 
-- Suggests README updates based on 1) the pull request description 2) the code changes in the PR 3) commit messages
+- Suggests README updates based on the pull request description, code changes in the PR, and commit messages
 - Automatically closes stale README update PRs
 - Uses LangChain and Anthropic's Claude model, OpenAI's models, or GitHub models for intelligent suggestions
 - Option to skip README checks for testing purposes
@@ -14,7 +14,7 @@ Currently only available for developers of this repo:
 
 ## Usage
 
-### Prerequisites:
+### Prerequisites
 
 - GitHub repository
 - Anthropic API key, OpenAI API key, or GitHub Actions Token (`GITHUB_TOKEN`)
@@ -40,14 +40,17 @@ Make sure to set an API key such as `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or us
 You can specify which model to use through the `model-provider` and `model` input parameters. This allows you to choose between Anthropic, OpenAI, and GitHub models:
 - For Anthropic:
   - `claude-3-5-sonnet-20240620` (default) - Recommended for quality
-  - `claude-3-5-haiku-latest` - Faster and more cost-effective option.
+  - `claude-3-5-haiku-latest` - Faster and more cost-effective option
 - For OpenAI:
   - `gpt-4o-mini-2024-07-18` - Example of an OpenAI model
 - For GitHub:
   - `gpt-4o` - Example of a GitHub model
   - `gpt-4o-mini` - Another GitHub model option
+  - `gpt-4.1` - Supported GitHub model
+  - `gpt-4.1-mini` - Supported GitHub model
+  - `gpt-4.1-nano` - Supported GitHub model
 
-In your repo settings, under Actions > General > Workflow Permissions be sure to check "Allow GitHub Actions to create and approve pull requests" and allow read/write from Github Actions:
+In your repo settings, under Actions > General > Workflow Permissions, be sure to check "Allow GitHub Actions to create and approve pull requests" and allow read/write from GitHub Actions:
 ![Workflow Permissions](workflow_permissions.png)
 
 ### Installation and Setup
