@@ -26,7 +26,7 @@ To use this action in your GitHub workflow, add the following step to your `.git
   with:
     model-provider: "github"
     api-key: ${{ secrets.GITHUB_TOKEN }}
-    model: gpt-4o  # Specify your preferred model
+    model: gpt-4.1  # Specify your preferred model
     readme-file: README.md
     debug: "true"
 ```
@@ -37,18 +37,18 @@ Make sure to set an API key such as `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or us
 
 ### Model Configuration
 
-You can specify which model to use through the `model-provider` and `model` input parameters. This allows you to choose between Anthropic, OpenAI, and GitHub models:
+You can specify which model to use through the `model-provider` and `model` input parameters. This allows you to choose between GitHub, Anthropic, and OpenAI models:
+- For GitHub:
+  - `gpt-4.1` - Recommended model, if your readme is well under 4000 tokens. See [Rate limits](https://docs.github.com/en/github-models/use-github-models/prototyping-with-ai-models#rate-limits) for details.
+  - `gpt-4.1-mini` - Supported GitHub model
+  - `gpt-4.1-nano` - Supported GitHub model
+  - `gpt-4o` - Example of a GitHub model
+  - `gpt-4o-mini` - Another GitHub model option
 - For Anthropic:
-  - `claude-3-5-sonnet-20240620` (default) - Recommended for quality
+  - `claude-3-5-sonnet-20240620` - Recommended for quality
   - `claude-3-5-haiku-latest` - Faster and more cost-effective option
 - For OpenAI:
   - `gpt-4o-mini-2024-07-18` - Example of an OpenAI model
-- For GitHub:
-  - `gpt-4o` - Example of a GitHub model
-  - `gpt-4o-mini` - Another GitHub model option
-  - `gpt-4.1` - Supported GitHub model
-  - `gpt-4.1-mini` - Supported GitHub model
-  - `gpt-4.1-nano` - Supported GitHub model
 
 In your repo settings, under Actions > General > Workflow Permissions, be sure to check "Allow GitHub Actions to create and approve pull requests" and allow read/write from GitHub Actions:
 ![Workflow Permissions](workflow_permissions.png)

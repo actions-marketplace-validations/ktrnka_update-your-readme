@@ -332,11 +332,11 @@ def main():
         "--model-provider",
         type=str,
         choices=["anthropic", "openai", "github"],
-        default="anthropic",
+        default="github",
         help="LLM provider to use",
     )
     parser.add_argument(
-        "--model", type=str, default="claude-3-5-sonnet-20240620", help="Model to use"
+        "--model", type=str, default="gpt-4.1", help="Model to use"
     )
     parser.add_argument(
         "--output-format",
