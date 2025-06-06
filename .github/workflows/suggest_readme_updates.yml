@@ -6,6 +6,7 @@ on:
 
 permissions:
   models: read
+  contents: write
 
 jobs:
   build:
