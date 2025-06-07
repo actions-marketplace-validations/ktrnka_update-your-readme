@@ -5,7 +5,7 @@ This project automatically updates README files based on changes in pull request
 ## Features
 
 - Suggests README updates based on the pull request description, code changes in the PR, and commit messages
-- Automatically closes stale README update PRs
+- Closes stale README update PRs
 - Uses GitHub Models for intelligent suggestions
 - Option to skip README checks for testing purposes
 
@@ -14,7 +14,13 @@ This project automatically updates README files based on changes in pull request
 ### Prerequisites
 
 - GitHub repository
-- GitHub Actions Token (`GITHUB_TOKEN`)
+- GitHub Actions allowed to create and approve pull requests: 
+  - Go to your repository settings
+  - Navigate to Actions > General > Workflow Permissions
+  - Check "Allow GitHub Actions to create and approve pull requests"
+  - Allow read/write from GitHub Actions
+
+![Workflow Permissions](workflow_permissions.png)
 
 To use this action in your GitHub workflow, add the following step to your `.github/workflows/your-workflow.yml` file, replacing the version as needed:
 
@@ -28,8 +34,6 @@ To use this action in your GitHub workflow, add the following step to your `.git
 
 See `.github/workflows/suggest_readme_updates.yml` for an example.
 
-Make sure to use the default `GITHUB_TOKEN` provided by GitHub Actions. Note: The Action will not work on PRs from forks because these secrets aren't available on workflows for those PRs.
-
 ### Model Configuration
 
 You can specify which GitHub model to use through the `model` input parameter. Supported models include:
@@ -38,9 +42,6 @@ You can specify which GitHub model to use through the `model` input parameter. S
 - `gpt-4.1-nano`
 - `gpt-4o`
 - `gpt-4o-mini`
-
-In your repo settings, under Actions > General > Workflow Permissions, be sure to check "Allow GitHub Actions to create and approve pull requests" and allow read/write from GitHub Actions:
-![Workflow Permissions](workflow_permissions.png)
 
 ### Installation and Setup
 
