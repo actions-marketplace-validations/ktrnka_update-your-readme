@@ -129,7 +129,7 @@ Markdown is a lightweight markup language that makes it easy to format and style
 
 
 def fill_prompt(
-    readme: str, pull_request_markdown: str, feedback: Optional[str]
+    readme: str, pull_request_markdown: str
 ) -> ChatPromptTemplate:
     return ChatPromptTemplate.from_messages(
         [
@@ -163,9 +163,6 @@ When updating the README, be sure to:
 
 # Pull request changes
 {pull_request_markdown}
-
-# Optional User Feedback about README updates
-{feedback}
 
 # Task
 Based on the above information, please provide a structured output indicating:
@@ -218,7 +215,6 @@ def review_pull_request(
     pr: PullRequest,
     relative_readme_path: str,
     tries_remaining=1,
-    feedback: Optional[str] = None,
     use_base_readme=False,
 ) -> ReadmeRecommendation:
     try:
@@ -234,7 +230,7 @@ def review_pull_request(
         # BadRequestError: Error code: 400 - {'error': {'message': "Unsupported value: 'messages[0].role' does not support 'system' with this model.", 'type': 'invalid_request_error', 'param': 'messages[0].role', 'code': 'unsupported_value'}}
 
         pipeline = fill_prompt(
-            readme_content, pr_content, feedback
+            readme_content, pr_content
         ) | model.with_structured_output(ReadmeRecommendation)
         result = pipeline.invoke({})
 
@@ -257,7 +253,7 @@ def review_pull_request(
         if tries_remaining > 1:
             # BUG? If this happens, and we're piping stdout to a file to parse the output it may break Github's output parsing
             print("Validation error, trying again")
-            return review_pull_request(model, repo, pr, relative_readme_path, tries_remaining - 1, feedback=feedback, use_base_readme=use_base_readme)
+            return review_pull_request(model, repo, pr, relative_readme_path, tries_remaining - 1, use_base_readme=use_base_readme)
         else:
             raise e
 
@@ -283,7 +279,6 @@ def main():
                         required=True, help="README file")
     parser.add_argument("--pr", type=int, required=True,
                         help="Pull request number")
-    parser.add_argument("--feedback", type=str, help="User feedback for LLM")
 
     parser.add_argument(
         "--model", type=str, default="gpt-4.1", help="GitHub Model to use"
@@ -310,7 +305,7 @@ def main():
     else:
         model = get_model(args.model)
         result = review_pull_request(
-            model, repo, pr, args.readme_relative, feedback=args.feedback)
+            model, repo, pr, args.readme_relative)
 
         if result.should_update and result.updated_readme:
             with open(args.readme_absolute, "w") as f:

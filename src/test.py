@@ -29,4 +29,4 @@ def test_output_validation():
 
 def test_fill_prompt():
     """Test that fill_prompt doesn't crash"""
-    assert "DEFAULT README" in str(fill_prompt("# DEFAULT README", "# PR STUFF", ""))
+    assert "DEFAULT README" in str(fill_prompt("# DEFAULT README", "# PR STUFF"))
