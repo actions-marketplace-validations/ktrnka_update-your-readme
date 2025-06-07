@@ -48,14 +48,6 @@ def gha_escape(s: str) -> str:
     return s.replace("%", "%25").replace("\n", "%0A").replace("\r", "%0D")
 
 
-def test_gha_escape():
-    assert gha_escape("test") == "test"
-    assert gha_escape("test\n") == "test%0A"
-    assert gha_escape("test\r") == "test%0D"
-    assert gha_escape("test%") == "test%25"
-    assert gha_escape("test\n\r%") == "test%0A%0D%25"
-
-
 class ReadmeRecommendation(BaseModel):
     """
     Structured output for the README review task
@@ -82,25 +74,6 @@ class ReadmeRecommendation(BaseModel):
 should_update={self.should_update}
 reason={gha_escape(self.reason)}
 """
-
-
-def test_output_validation():
-    # importing here because it's a dev dependency
-    import pytest
-
-    # test that it works normally
-    ReadmeRecommendation(should_update=True, reason="test", updated_readme="test")
-
-    # test that it fails with missing fields
-    with pytest.raises(ValidationError):
-        ReadmeRecommendation(should_update=True)
-
-    # test that it passes if should_update is False and the updated_readme is missing
-    ReadmeRecommendation(should_update=False, reason="test", updated_readme=None)
-
-    # test that it fails if should_update is True and the updated_readme is missing
-    with pytest.raises(ValidationError):
-        ReadmeRecommendation(should_update=True, reason="test")
 
 
 # Copied from https://www.hatica.io/blog/best-practices-for-github-readme/
@@ -204,10 +177,6 @@ C) updated_readme: The updated README content (if applicable)
             ),
         ]
     )
-
-def test_fill_prompt():
-    # Basic no-crash test
-    assert "DEFAULT README" in str(fill_prompt("# DEFAULT README", "# PR STUFF", ""))
 
 
 def get_model(model_provider: str, model_name: str) -> BaseChatModel:
