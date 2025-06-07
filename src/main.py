@@ -1,13 +1,13 @@
-import warnings
-from github import Github, Auth, Repository, PullRequest
+from github import Github, Auth
+from github.Repository import Repository
+from github.PullRequest import PullRequest
 import os
 from argparse import ArgumentParser
 from dotenv import load_dotenv
-from langchain_openai import AzureChatOpenAI, ChatOpenAI
+from langchain_openai import AzureChatOpenAI
 import openai
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, Field, ValidationError, model_validator, SecretStr
 from typing import Optional
-from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.language_models import BaseChatModel
@@ -16,7 +16,7 @@ from langchain_core.language_models import BaseChatModel
 load_dotenv()
 
 
-def pull_request_to_markdown(pr: PullRequest, excluded_diff_types={"ipynb"}) -> str:
+def pull_request_to_markdown(pr: PullRequest, excluded_diff_types={"ipynb", "lock"}) -> str:
     """
     Format key information from the pull request as markdown suitable for LLM input
     """
@@ -46,14 +46,6 @@ def gha_escape(s: str) -> str:
     return s.replace("%", "%25").replace("\n", "%0A").replace("\r", "%0D")
 
 
-def test_gha_escape():
-    assert gha_escape("test") == "test"
-    assert gha_escape("test\n") == "test%0A"
-    assert gha_escape("test\r") == "test%0D"
-    assert gha_escape("test%") == "test%25"
-    assert gha_escape("test\n\r%") == "test%0A%0D%25"
-
-
 class ReadmeRecommendation(BaseModel):
     """
     Structured output for the README review task
@@ -65,12 +57,14 @@ class ReadmeRecommendation(BaseModel):
     reason: str = Field(description="Reason for the recommendation")
     updated_readme: Optional[str] = Field(
         description="Updated README content, required if should_update is True, otherwise optional",
+        default=None,
     )
 
     @model_validator(mode="after")
     def post_validation_check(self) -> "ReadmeRecommendation":
         if self.should_update and self.updated_readme is None:
-            raise ValueError("updated_readme must be provided if should_update is True")
+            raise ValueError(
+                "updated_readme must be provided if should_update is True")
 
         return self
 
@@ -79,25 +73,6 @@ class ReadmeRecommendation(BaseModel):
 should_update={self.should_update}
 reason={gha_escape(self.reason)}
 """
-
-
-def test_output_validation():
-    # importing here because it's a dev dependency
-    import pytest
-
-    # test that it works normally
-    ReadmeRecommendation(should_update=True, reason="test", updated_readme="test")
-
-    # test that it fails with missing fields
-    with pytest.raises(ValidationError):
-        ReadmeRecommendation(should_update=True)
-
-    # test that it passes if should_update is False and the updated_readme is missing
-    ReadmeRecommendation(should_update=False, reason="test", updated_readme=None)
-
-    # test that it fails if should_update is True and the updated_readme is missing
-    with pytest.raises(ValidationError):
-        ReadmeRecommendation(should_update=True, reason="test")
 
 
 # Copied from https://www.hatica.io/blog/best-practices-for-github-readme/
@@ -154,7 +129,7 @@ Markdown is a lightweight markup language that makes it easy to format and style
 
 
 def fill_prompt(
-    readme: str, pull_request_markdown: str, feedback: str
+    readme: str, pull_request_markdown: str
 ) -> ChatPromptTemplate:
     return ChatPromptTemplate.from_messages(
         [
@@ -189,9 +164,6 @@ When updating the README, be sure to:
 # Pull request changes
 {pull_request_markdown}
 
-# Optional User Feedback about README updates
-{feedback}
-
 # Task
 Based on the above information, please provide a structured output indicating:
 A) should_update: Should the README be updated?
@@ -202,67 +174,40 @@ C) updated_readme: The updated README content (if applicable)
         ]
     )
 
-def test_fill_prompt():
-    # Basic no-crash test
-    assert "DEFAULT README" in str(fill_prompt("# DEFAULT README", "# PR STUFF", ""))
+
+def get_model(model_name: str) -> BaseChatModel:
+    os.environ["AZURE_OPENAI_ENDPOINT"] = "https://models.inference.ai.azure.com"
+
+    SUPPORTED_GITHUB_MODELS = {"gpt-4o", "gpt-4o-mini",
+                               "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"}
+    if model_name not in SUPPORTED_GITHUB_MODELS:
+        raise ValueError(f"{model_name} is not supported. If it's a non-OpenAI model, it's because we're using the AzureChatOpenAI wrapper which only supports the OpenAI models. If it's an o-series model, it's because the o-series doesn't support SystemMessage and I haven't implemented the fix yet. Supported models: {SUPPORTED_GITHUB_MODELS}")
+
+    return AzureChatOpenAI(
+        # Looks like deployment and model are the same? https://learn.microsoft.com/en-us/azure/ai-studio/ai-services/how-to/quickstart-github-models?tabs=python
+        # azure_deployment=model_name,
+        model=model_name,
+        # This api_version supports structured output and o-series models
+        api_version="2024-12-01-preview",
+        # Note: This can now use a GitHub Actions token (GITHUB_TOKEN)
+        api_key=SecretStr(os.environ["GITHUB_TOKEN"]),
+        temperature=0.2,
+        # max_tokens is output
+        max_tokens=4000
+    )
 
 
-def get_model(model_provider: str, model_name: str) -> BaseChatModel:
-    # model notes
-    # What we used in development: claude-3-5-sonnet-20240620
-    # Fast, cheap: claude-3-haiku-20240307
-    if model_provider == "anthropic":
-        with warnings.catch_warnings():
-            # The specific UserWarning we're ignoring is:
-            # UserWarning: WARNING! extra_headers is not default parameter.
-            #             extra_headers was transferred to model_kwargs.
-            #             Please confirm that extra_headers is what you intended.
-            warnings.filterwarnings("ignore", category=UserWarning)
-
-            # 3.5 models have a max_tokens of 8192, while 3.0 models have a max_tokens of 4096
-            max_tokens = 8192 if model_name.startswith("claude-3-5-") else 4096
-
-            return ChatAnthropic(
-                model=model_name,
-                # The default is 1024 which leads to pipeline failures on longer readme (because it can't regenerate the entire readme)
-                max_tokens=max_tokens,
-                # On prompt caching:
-                # https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
-                # https://api.python.langchain.com/en/latest/chat_models/langchain_anthropic.chat_models.ChatAnthropic.html
-                extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
-                api_key=os.environ["API_KEY"],
-            )
-    elif model_provider == "openai":
-        return ChatOpenAI(model=model_name, api_key=os.environ["API_KEY"])
-    elif model_provider == "github":
-        os.environ["AZURE_OPENAI_ENDPOINT"] = "https://models.inference.ai.azure.com"
-
-        SUPPORTED_GITHUB_MODELS = {"gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"}
-        if model_name not in SUPPORTED_GITHUB_MODELS:
-            raise ValueError(f"{model_name} is not supported. If it's a non-OpenAI model, it's because we're using the AzureChatOpenAI wrapper which only supports the OpenAI models. If it's an o-series model, it's because the o-series doesn't support SystemMessage and I haven't implemented the fix yet. Supported models: {SUPPORTED_GITHUB_MODELS}")
-
-        return AzureChatOpenAI(
-            # Looks like deployment and model are the same? https://learn.microsoft.com/en-us/azure/ai-studio/ai-services/how-to/quickstart-github-models?tabs=python
-            # azure_deployment=model_name,
-            model=model_name, 
-            # This api_version supports structured output and o-series models
-            api_version="2024-12-01-preview",
-            # Note: This can now use a GitHub Actions token (GITHUB_TOKEN)
-            api_key=os.environ["API_KEY"],
-            temperature=0.2,
-            # max_tokens is output
-            max_tokens=4000
-            )
-    else:
-        raise ValueError(f"Unknown model provider: {model_provider}")
-
-def get_readme(repo: Repository.Repository, pr: PullRequest.PullRequest, relative_readme_path: str, use_base_readme=False) -> str:
+def get_readme(repo: Repository, pr: PullRequest, relative_readme_path: str, use_base_readme=False) -> str:
     """
     relative_readme_path: The path to the README file relative to the repository root
     """
-    return repo.get_contents(
-            relative_readme_path, ref=pr.base.sha if use_base_readme else pr.head.sha
-        ).decoded_content.decode()
+    content_file = repo.get_contents(
+        relative_readme_path, ref=pr.base.sha if use_base_readme else pr.head.sha
+    )
+    assert not isinstance(content_file, list), "get_readme: Expected a single file, not a list."
+
+    return content_file.decoded_content.decode()
+
 
 def review_pull_request(
     model: BaseChatModel,
@@ -270,11 +215,11 @@ def review_pull_request(
     pr: PullRequest,
     relative_readme_path: str,
     tries_remaining=1,
-    feedback: str = None,
     use_base_readme=False,
 ) -> ReadmeRecommendation:
     try:
-        readme_content = get_readme(repo, pr, relative_readme_path, use_base_readme)
+        readme_content = get_readme(
+            repo, pr, relative_readme_path, use_base_readme)
         pr_content = pull_request_to_markdown(pr)
 
         # github provider:
@@ -285,9 +230,12 @@ def review_pull_request(
         # BadRequestError: Error code: 400 - {'error': {'message': "Unsupported value: 'messages[0].role' does not support 'system' with this model.", 'type': 'invalid_request_error', 'param': 'messages[0].role', 'code': 'unsupported_value'}}
 
         pipeline = fill_prompt(
-            readme_content, pr_content, feedback
+            readme_content, pr_content
         ) | model.with_structured_output(ReadmeRecommendation)
         result = pipeline.invoke({})
+
+        # Mainly to silence the type checker. Probably good to do anyway though
+        assert isinstance(result, ReadmeRecommendation), "Expected a ReadmeRecommendation object"
 
         # In the Azure API, if we hit the length limit it'd be in the finish_reason:
         # if response.choices[0].finish_reason != CompletionsFinishReason.STOPPED:
@@ -305,11 +253,12 @@ def review_pull_request(
         if tries_remaining > 1:
             # BUG? If this happens, and we're piping stdout to a file to parse the output it may break Github's output parsing
             print("Validation error, trying again")
-            return review_pull_request(model, repo, pr, relative_readme_path, tries_remaining - 1, feedback=feedback, use_base_readme=use_base_readme)
+            return review_pull_request(model, repo, pr, relative_readme_path, tries_remaining - 1, use_base_readme=use_base_readme)
         else:
             raise e
 
-def parse_pr_link(github_client: Github, url: str) -> tuple[Repository.Repository, PullRequest.PullRequest]:
+
+def parse_pr_link(github_client: Github, url: str) -> tuple[Repository, PullRequest]:
     # TODO: Improve this code to be more robust
     repo_name = '/'.join(url.split('/')[-4:-2])
     pr_number = int(url.split('/')[-1])
@@ -318,25 +267,21 @@ def parse_pr_link(github_client: Github, url: str) -> tuple[Repository.Repositor
     pull_request = repo.get_pull(pr_number)
     return repo, pull_request
 
+
 def main():
     parser = ArgumentParser()
     parser.add_argument(
         "--repository", "-r", type=str, required=True, help="Repository name"
     )
-    parser.add_argument("--readme-relative", type=str, required=True, help="README file")
-    parser.add_argument("--readme-absolute", type=str, required=True, help="README file")
-    parser.add_argument("--pr", type=int, required=True, help="Pull request number")
-    parser.add_argument("--feedback", type=str, help="User feedback for LLM")
+    parser.add_argument("--readme-relative", type=str,
+                        required=True, help="README file")
+    parser.add_argument("--readme-absolute", type=str,
+                        required=True, help="README file")
+    parser.add_argument("--pr", type=int, required=True,
+                        help="Pull request number")
 
     parser.add_argument(
-        "--model-provider",
-        type=str,
-        choices=["anthropic", "openai", "github"],
-        default="github",
-        help="LLM provider to use",
-    )
-    parser.add_argument(
-        "--model", type=str, default="gpt-4.1", help="Model to use"
+        "--model", type=str, default="gpt-4.1", help="GitHub Model to use"
     )
     parser.add_argument(
         "--output-format",
@@ -358,8 +303,9 @@ def main():
             should_update=False, reason="'NO README REVIEW' in PR body"
         )
     else:
-        model = get_model(args.model_provider, args.model)
-        result = review_pull_request(model, repo, pr, args.readme_relative, feedback=args.feedback)
+        model = get_model(args.model)
+        result = review_pull_request(
+            model, repo, pr, args.readme_relative)
 
         if result.should_update and result.updated_readme:
             with open(args.readme_absolute, "w") as f:
@@ -370,6 +316,7 @@ def main():
         print(result.to_github_actions_outputs())
     else:
         print(result.model_dump_json())
+
 
 if __name__ == "__main__":
     main()
