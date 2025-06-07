@@ -19,7 +19,7 @@ jobs:
       # Note: This points to the latest version on main; users should pull a tagged version instead
       # When doing development on a branch, point to the branch
       # The "uses" field doesn't support variables, so we can't use the branch name dynamically
-      - uses: ktrnka/update-your-readme@cleanup
+      - uses: ktrnka/update-your-readme@simplify_06_2025
         with:
           model: gpt-4.1
           readme-file: README.md
