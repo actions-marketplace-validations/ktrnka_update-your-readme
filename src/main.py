@@ -16,7 +16,7 @@ from langchain_core.language_models import BaseChatModel
 load_dotenv()
 
 
-def pull_request_to_markdown(pr: PullRequest, excluded_diff_types={"ipynb"}) -> str:
+def pull_request_to_markdown(pr: PullRequest, excluded_diff_types={"ipynb", "lock"}) -> str:
     """
     Format key information from the pull request as markdown suitable for LLM input
     """
