@@ -9,7 +9,6 @@ dependencies = [
     "requests",
     "python-dotenv",
     "langchain",
-    "langchain-anthropic",
     "langchain-openai",
     "pydantic"
 ]
