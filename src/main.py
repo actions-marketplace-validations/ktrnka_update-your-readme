@@ -1,5 +1,7 @@
 import warnings
-from github import Github, Auth, Repository, PullRequest
+from github import Github, Auth
+from github.Repository import Repository
+from github.PullRequest import PullRequest
 import os
 from argparse import ArgumentParser
 from dotenv import load_dotenv
@@ -65,6 +67,7 @@ class ReadmeRecommendation(BaseModel):
     reason: str = Field(description="Reason for the recommendation")
     updated_readme: Optional[str] = Field(
         description="Updated README content, required if should_update is True, otherwise optional",
+        default=None,
     )
 
     @model_validator(mode="after")
@@ -154,7 +157,7 @@ Markdown is a lightweight markup language that makes it easy to format and style
 
 
 def fill_prompt(
-    readme: str, pull_request_markdown: str, feedback: str
+    readme: str, pull_request_markdown: str, feedback: Optional[str]
 ) -> ChatPromptTemplate:
     return ChatPromptTemplate.from_messages(
         [
@@ -256,7 +259,7 @@ def get_model(model_provider: str, model_name: str) -> BaseChatModel:
     else:
         raise ValueError(f"Unknown model provider: {model_provider}")
 
-def get_readme(repo: Repository.Repository, pr: PullRequest.PullRequest, relative_readme_path: str, use_base_readme=False) -> str:
+def get_readme(repo: Repository, pr: PullRequest, relative_readme_path: str, use_base_readme=False) -> str:
     """
     relative_readme_path: The path to the README file relative to the repository root
     """
@@ -270,7 +273,7 @@ def review_pull_request(
     pr: PullRequest,
     relative_readme_path: str,
     tries_remaining=1,
-    feedback: str = None,
+    feedback: Optional[str] = None,
     use_base_readme=False,
 ) -> ReadmeRecommendation:
     try:
@@ -309,7 +312,7 @@ def review_pull_request(
         else:
             raise e
 
-def parse_pr_link(github_client: Github, url: str) -> tuple[Repository.Repository, PullRequest.PullRequest]:
+def parse_pr_link(github_client: Github, url: str) -> tuple[Repository, PullRequest]:
     # TODO: Improve this code to be more robust
     repo_name = '/'.join(url.split('/')[-4:-2])
     pr_number = int(url.split('/')[-1])
